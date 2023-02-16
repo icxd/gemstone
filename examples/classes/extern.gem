@@ -1,0 +1,12 @@
+class ExternExample {
+    public external function foo() -> int;
+}
+
+function ExternExample::foo() {
+    return 0;
+}
+
+function main() -> int {
+    var x: ExternExample* = new ExternExample();
+    return x.foo();
+}

@@ -1,0 +1,5 @@
+function main(argc: int, argv: char**) -> int {
+    const x: char**** = "whatever";
+
+    return 0;
+}

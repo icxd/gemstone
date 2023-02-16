@@ -1,0 +1,27 @@
+class Parent {
+    public virtual function foo() -> int {
+        print("Parent::foo()\n");
+        return 123;
+    }
+    private virtual function bar() -> int;
+}
+
+class Child: Parent {
+    public override function foo() -> int {
+        print("Child::foo()\n");
+        return 456;
+    }
+    private override function bar() -> int {
+        print("Child::bar()\n");
+        return 789;
+    }
+}
+
+function main(argc: int, argv: char**) -> int {
+    var p: Parent* = new Child();
+    var c: Child* = new Child();
+
+    const foo: int = p->foo();
+
+    return 0;
+}

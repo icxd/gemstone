@@ -1,0 +1,6 @@
+class Whatever { }
+
+function main(argc: int, argv: char**) -> int {
+    const whatever: Whatever* = new Whatever();
+    return 0;
+}

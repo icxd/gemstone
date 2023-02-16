@@ -1,0 +1,3 @@
+function main(argc: int, argv: char**) -> int {
+    return 0;
+}
