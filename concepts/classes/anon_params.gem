@@ -1,0 +1,12 @@
+class ConstantParameters {
+    public function foo(anonymous mutable bar: int, baz: char*) -> void {
+
+    }
+}
+
+function main() -> int {
+    const cls: ConstantParameters = new ConstantParameters();
+    cls.foo(123, baz: "string or whatever");
+
+    return 0;
+}

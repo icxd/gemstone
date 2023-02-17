@@ -3,7 +3,7 @@ class Parent {
         print("Parent::foo()\n");
         return 123;
     }
-    private virtual function bar() -> int;
+    public virtual function bar() -> int;
 }
 
 class Child: Parent {
@@ -11,7 +11,7 @@ class Child: Parent {
         print("Child::foo()\n");
         return 456;
     }
-    private override function bar() -> int {
+    public override function bar() -> int {
         print("Child::bar()\n");
         return 789;
     }
@@ -22,6 +22,7 @@ function main(argc: int, argv: char**) -> int {
     var c: Child* = new Child();
 
     const foo: int = p->foo();
+    const bar: int = c->bar();
 
     return 0;
 }

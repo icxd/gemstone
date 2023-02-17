@@ -1,0 +1,8 @@
+class Example {
+
+}
+
+function main(argc: int, argv: char**) -> int {
+    const example: Example = new Example();
+    return 0;
+}
