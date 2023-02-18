@@ -62,6 +62,15 @@ struct ClassFunction {
 }
 
 #[derive(Debug, Clone)]
+struct ClassVariable {
+    pub name: String,
+    pub var_type: Type,
+    pub initializer: Box<Expr>,
+    pub access: AccessModifier,
+    pub is_named: bool,
+}
+
+#[derive(Debug, Clone)]
 struct Function {
     pub name: String,
     pub args: Vec<(String, Type)>,
@@ -98,6 +107,7 @@ struct New {
 enum Expr {
     Class(Class),
     ClassFunction(ClassFunction),
+    ClassVariable(ClassVariable),
     Function(Function),
     Block(Block),
     FunctionCall(FunctionCall),
@@ -255,11 +265,46 @@ impl Gemstone {
         let mut methods: Vec<Expr> = vec![];
         *index += 1;
         while *index < tokens.len() && tokens.get(*index).unwrap().clone() != Token::RightCurly {
-            methods.push(self.parse_class_function_def(tokens, index));
+            methods.push(self.parse_class_body(tokens, index));
         }
         *index += 1;
         self.classes.insert(name.clone(), Class { name: name.clone(), base_class, methods });
         Expr::Class(self.classes.get(&name.clone()).unwrap().clone())
+    }
+    fn parse_class_body(&mut self, tokens: &Vec<Token>, index: &mut usize) -> Expr {
+        let mut access_modifier: AccessModifier = AccessModifier::Private;
+        if tokens.get(*index).unwrap().clone() == Token::Word("public".to_string()) {
+            access_modifier = AccessModifier::Public;
+            *index += 1;
+        } else if tokens.get(*index).unwrap().clone() == Token::Word("private".to_string()) {
+            access_modifier = AccessModifier::Private;
+            *index += 1;
+        }
+        let mut is_named: bool = false;
+        if tokens.get(*index).unwrap().clone() == Token::Word("named".to_string()) {
+            is_named = true;
+            *index += 1;
+        }
+        self._match(tokens, index, &Token::Word("var".to_string()));
+        let name: String = match tokens.get(*index).unwrap().clone() {
+            Token::Word(word) => word,
+            _ => panic!("expected Word, got {:?}", tokens.get(*index).unwrap().clone())
+        };
+        *index += 1;
+        self._match(tokens, index, &Token::Colon);
+        let var_type: Type = self.parse_type(tokens, index);
+        let mut value: Expr = Expr::Empty;
+        if self._is(tokens, index, &Token::Equal) {
+            value = self.parse_token(tokens, index);
+        }
+        self._match(tokens, index, &Token::Semicolon);
+        Expr::ClassVariable(ClassVariable {
+            name,
+            var_type,
+            initializer: Box::new(value),
+            access: access_modifier,
+            is_named
+        })
     }
     fn parse_class_function_def(&mut self, tokens: &Vec<Token>, index: &mut usize) -> Expr {
         let mut access_modifier: AccessModifier = AccessModifier::Private;
@@ -553,6 +598,13 @@ impl Gemstone {
         }
         panic!("expected {:?}, got {:?} (before: {:?}, after: {:?})", token.clone(), tokens.get(*index).unwrap().clone(), tokens.get(*index - 1).unwrap().clone(), tokens.get(*index + 1).unwrap().clone());
     }
+    fn _is(&mut self, tokens: &Vec<Token>, index: &mut usize, token: &Token) -> bool {
+        if tokens.get(*index).unwrap().clone() == *token {
+            *index += 1;
+            return true;
+        }
+        false
+    }
     pub fn type_checker(&mut self, exprs: &Vec<Expr>) {
         for expr in exprs {
             self.type_check_expr(expr);
@@ -653,12 +705,23 @@ impl Gemstone {
 
         let mut public_methods: Vec<&ClassFunction> = vec![];
         let mut private_methods: Vec<&ClassFunction> = vec![];
+        let mut variables: Vec<&ClassVariable> = vec![];
+        let mut public_variables: Vec<&ClassVariable> = vec![];
         for method in &class.methods {
             match method {
                 Expr::ClassFunction(class_function) => {
                     match class_function.access {
                         AccessModifier::Public => public_methods.push(class_function),
                         AccessModifier::Private => private_methods.push(class_function),
+                    }
+                }
+                Expr::ClassVariable(class_variable) => {
+                    match class_variable.access {
+                        AccessModifier::Public => {
+                            public_variables.push(class_variable);
+                            variables.push(class_variable);
+                        }
+                        AccessModifier::Private => variables.push(class_variable),
                     }
                 }
                 _ => panic!("expected ClassFunction, got {:?}", method)
@@ -670,21 +733,40 @@ impl Gemstone {
             output.push_str(&format!(": public {}", class.base_class.clone().unwrap()));
         }
         output.push_str(" {\n");
-        if public_methods.len() > 0 {
+        if public_methods.len() > 0 || public_variables.len() > 0 {
             output.push_str("public:\n");
         }
+        output.push_str(&format!("{}(", class.name));
+        let mut parameters: Vec<String> = vec![];
+        for variable in public_variables.clone() {
+            parameters.push(format!("{} {}", self.compile_type(&variable.clone().var_type), variable.clone().name));
+        }
+        output.push_str(&parameters.join(", "));
+        output.push_str(") : ");
+        let mut initializers: Vec<String> = vec![];
+        for variable in public_variables {
+            initializers.push(format!("{}({})", variable.clone().name, variable.clone().name));
+        }
+        output.push_str(&initializers.join(", "));
+        output.push_str(" {}\n");
+
+
         for method in public_methods {
             output.push_str(&self.compile_class_function(method));
         }
-        if private_methods.len() > 0 {
+        if private_methods.len() > 0 || variables.len() > 0 {
             output.push_str("private:\n");
         }
         for method in private_methods {
             output.push_str(&self.compile_class_function(method));
         }
+        for variable in variables {
+            output.push_str(format!("{} {};\n", self.compile_type(&variable.clone().var_type), variable.clone().name).as_str());
+        }
         output.push_str("};\n");
         output
     }
+
     fn compile_class_function(&mut self, class_function: &ClassFunction) -> String {
         let mut output: String = String::new();
 
